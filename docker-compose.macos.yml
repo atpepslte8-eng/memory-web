@@ -1,0 +1,35 @@
+# Override for macOS - use host Ollama instead of containerized (no NVIDIA)
+# Copy this file to docker-compose.override.yml on macOS with Apple Silicon
+services:
+  # Disable the containerized Ollama
+  ollama:
+    profiles:
+      - disabled
+
+  # Point app to host's Ollama
+  app:
+    environment:
+      MW_OLLAMA_BASE_URL: http://host.docker.internal:11434
+      MW_SESSIONS_DIR: /claude-sessions
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /Users/atpepslte/.claude/projects:/claude-sessions:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Point celery to host's Ollama
+  celery:
+    environment:
+      MW_OLLAMA_BASE_URL: http://host.docker.internal:11434
+      MW_SESSIONS_DIR: /claude-sessions
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /Users/atpepslte/.claude/projects:/claude-sessions:ro
+    depends_on:
+      app:
+        condition: service_healthy
