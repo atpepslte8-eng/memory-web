@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 
 from ..celery_app import celery_app
 from ..services import ingestion
+from .pipeline_tasks import run_full_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,12 @@ def ingest_session_task(self, path: str, force: bool = False) -> Dict[str, Any]:
     self.update_state(state="STARTED", meta={"path": path, "stage": "ingesting"})
     try:
         result = ingestion.ingest_session_file(path, force=force)
+        # Trigger pipeline if we have a valid source_id and not skipped
+        if not result.get("skipped") and result.get("source_id"):
+            run_full_pipeline.apply_async(
+                countdown=2,
+                kwargs={"source_id": result["source_id"]}
+            )
         return result
     except Exception as e:
         logger.error("ingest_session_task failed: %s", e)
